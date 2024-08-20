@@ -2,6 +2,57 @@ import React, { useEffect, useState } from "react";
 import "../components/SearchInput.css";
 import axios from "axios";
 
+const highlightText = (text, query) => {
+  if (!query) return text;
+  const regex = new RegExp(`(${query})`, "gi");
+
+  return text.split(regex).map((part, index) =>
+    regex.test(part) ? (
+      <span key={index} className="highlight">
+        {part}
+      </span>
+    ) : (
+      part
+    )
+  );
+};
+
+const SearchInputField = ({ value, onChange }) => (
+  <div className="input-container">
+    <input className="input" type="text" value={value} onChange={onChange} />
+  </div>
+);
+
+const Card = ({
+  item,
+  index,
+  focusedIndex,
+  onClick,
+  highlightText,
+  inputText,
+}) => {
+  const itemMatch =
+    item.items &&
+    item.items.some((item) => item.toLowerCase().includes(inputText));
+
+  return (
+    <div
+      id={`card-${index}`}
+      className={`input-cards ${index === focusedIndex ? "focused" : ""}`}
+      onClick={() => onClick(index)}
+    >
+      <p>{highlightText(item.id.toString(), inputText)}</p>
+      <p>{highlightText(item.name, inputText)}</p>
+      <p>{highlightText(item.address, inputText)}</p>
+      {itemMatch && (
+        <p className="item-message">
+          {inputText ? `${inputText} found in items` : ""}
+        </p>
+      )}
+    </div>
+  );
+};
+
 const SearchInput = () => {
   const [inputText, setInputText] = useState("");
   const [data, setData] = useState([]);
@@ -38,34 +89,17 @@ const SearchInput = () => {
     setFocusedIndex(-1); // Reset focus index on input change
   };
 
-  const highlightText = (text, query) => {
-    if (!query) return text;
-    const regex = new RegExp(`(${query})`, "gi");
-
-    return text.split(regex).map((part, index) =>
-      regex.test(part) ? (
-        <span key={index} className="highlight">
-          {part}
-        </span>
-      ) : (
-        part
-      )
-    );
-  };
-
   const handleKeyDown = (e) => {
     if (records.length === 0) return; // Do nothing if no cards
 
     if (e.key === "ArrowDown") {
       e.preventDefault();
       setFocusedIndex((prevIndex) =>
-        prevIndex < records.length - 1 ? prevIndex + 1 : prevIndex
+        Math.min(prevIndex + 1, records.length - 1)
       );
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
-      setFocusedIndex((prevIndex) =>
-        prevIndex > 0 ? prevIndex - 1 : prevIndex
-      );
+      setFocusedIndex((prevIndex) => Math.max(prevIndex - 1, 0));
     } else if (e.key === "Enter" && focusedIndex !== -1) {
       handleCardClick(focusedIndex);
     }
@@ -98,43 +132,22 @@ const SearchInput = () => {
 
   return (
     <div className="main-container">
-      <div className="input-container">
-        <input
-          className="input"
-          type="text"
-          value={inputText}
-          onChange={handleInputChange}
-        />
-      </div>
+      <SearchInputField value={inputText} onChange={handleInputChange} />
       <div className="scrollable-content">
         {records.length === 0 ? (
           <div className="empty-card">No results found</div>
         ) : (
-          records.map((item, index) => {
-            const itemMatch =
-              item.items &&
-              item.items.some((item) => item.toLowerCase().includes(inputText));
-
-            return (
-              <div
-                key={item.id}
-                id={`card-${index}`}
-                className={`input-cards ${
-                  index === focusedIndex ? "focused" : ""
-                }`}
-                onClick={() => handleCardClick(index)}
-              >
-                <p>{highlightText(item.id.toString(), inputText)}</p>
-                <p>{highlightText(item.name, inputText)}</p>
-                <p>{highlightText(item.address, inputText)}</p>
-                {itemMatch && (
-                  <p className="item-message">
-                    {inputText ? `${inputText} found in items` : ""}
-                  </p>
-                )}
-              </div>
-            );
-          })
+          records.map((item, index) => (
+            <Card
+              key={item.id}
+              item={item}
+              index={index}
+              focusedIndex={focusedIndex}
+              onClick={handleCardClick}
+              highlightText={highlightText}
+              inputText={inputText}
+            />
+          ))
         )}
       </div>
     </div>
